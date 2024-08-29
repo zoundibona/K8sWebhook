@@ -33,7 +33,7 @@ below a summary of the requirements : <br>
 * Python Flash Script (Version 3.0.3)
 * Server certificate and key
 * CA certificate and Key to sign server certificate
-* Kubernetes cluster (I used 1.30)
+* Kubernetes cluster (Kubernetes version used : 1.30)
   
 
 Kindly note that kubernetes does not accept CN (Common Name) certificate but rather SAN (Subject Alternative Name)
@@ -43,7 +43,11 @@ In case you want to know the differences between CN and SAN you can search over 
 
 # SETUP
 
-Kindly check into the github repository for the flask script called (webhookserver.py), the same script does both mutation and validation, for mutation the path is server.webhook.com:5000/mutate while for the validation the path is server.webhook.com:5000/validate. <br>
+Kindly check into the github repository for the flask script called **(webhookserver.py)**, the same script does both mutation and validation, for mutation the path is **server.webhook.com:5000/mutate** while for the validation the path is **server.webhook.com:5000/validate**. <br>
+
+When there is an attempt to create a POD, the request is sent to the API server because both mutating and validating are applied, the request goes first through the mutating step. <br>
+At this stage the Flask script will change some fields like serviceAccountName, and also add resources requests and limits to the containers.
+After completing the mutating stage, it goes to now to validating stage, if the containers in the POD have images in the list defined in the script then it will be created otherwise it will be rejected
 
 The server.webhook.com is the webhook server name, it is not public, a static DNS entry has been added in Kubernetes Core DNS to resolve the DNS name to static IP of the device hosting the server.
 In case you want to host over Internet which I do not advise make sure you have a public domain.
@@ -83,8 +87,8 @@ When this configuration is applied whenever a pod is created the API will reach 
 * ### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; GENERATE CA KEY AND CERTIFICATE
 
 
-   openssl genrsa 2048 | tee caKey.pem    &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;  **This will generate private key for the CA**  <br>
-   openssl req -new -x509 -nodes -days 365000 -key caKey.pem   -out caCert.pem   &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;  **This will generate a self signed certificate** <br>
+openssl genrsa 2048 | tee caKey.pem    &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;  **This will generate private key for the CA**  <br>
+openssl req -new -x509 -nodes -days 365000 -key caKey.pem   -out caCert.pem   &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;  **This will generate a self signed certificate** <br>
 
 
 * ### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; GENERATE SERVER KEY AND CERTIFICATE
@@ -111,7 +115,7 @@ run the below command:  <br>
 kubectl edit -n kube-system cm coredns <br>
 
 This will edit the configmap used for Kubernetes core DNS. 
-See below file you will find a host entry that resolve the dns name to IP
+You will find a host entry in below output that resolves the dns name(server.webhook.com) to IP (192.168.1.4 which is IP of webhook server)
 
 
 
@@ -137,7 +141,7 @@ See below file you will find a host entry that resolve the dns name to IP
         }
 
 
-To test that the entry is successful, you use a POD that supports shell, like nginx. Install dns-utils and try nslookup "dns.name". 
+To test this entry, you use a POD that supports shell, like nginx. Install dns-utils and try nslookup "dns.name". 
 If the DNS is able to resolve then it means it works. It is also possible in Webhook manifest file to use the static IP instead of the DNS name
 ##  &nbsp; STEP 3 :APPLY THE WEBHOOK CONFIG FILES
 
@@ -183,7 +187,9 @@ I have decided to only show the spec section as this is where the changes have b
     serviceAccount: sa         **default serviceaccount has been chnaged to sa**
     serviceAccountName: sa      **default serviceaccountName has been chnaged to sa**
 
-As you can see the mutating webhook has performed some changes and validating webhook has validated the pod creation  <br>
+As you can see the mutating webhook has performed some changes, the serviceaccountName and resources were not specified when the POD was created but at the end they have been added. After the mutating stage the validating took place to validate the pod creation.  <br>
+It is also possible to use the yaml definition (declarative) instead imperative mode used in this case
+
 
 
 
