@@ -138,6 +138,8 @@ The validating requires the image of the POD to be part of list("redis", "nginx,
 
 ### SCENARIO 1
 
+In this scenario we will use a case where the POD image is part of the list ("redis", "nginx, "httpd") as defined in the Flask script
+
 **$ kubectl run testpod --image=nginx**   <br>
    pod/testpod created <br>
 
@@ -163,10 +165,10 @@ I have decided to only show the spec section as this where the changes have been
           memory: 128Mi   
   
    
-    serviceAccount: sa         default serviceaccount has been chnaged to sa
-    serviceAccountName: sa      default serviceaccount has been chnaged to sa
+    serviceAccount: sa         **default serviceaccount has been chnaged to sa**
+    serviceAccountName: sa      **default serviceaccount has been chnaged to sa**
 
-As you can see the mutating webhook has performed some changes and validating has validated the pod creation  <br>
+As you can see the mutating webhook has performed some changes and validating webhook has validated the pod creation  <br>
 
 
 
