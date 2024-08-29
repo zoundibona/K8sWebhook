@@ -133,15 +133,14 @@ validatingwebhookconfiguration.admissionregistration.k8s.io/validate-webhook cre
 
 ## TEST OF WEBHOOK SERVER
 
-After applying the mutating and validating file, let us test.
-The mutating add resources request, limits and change service account name
-The validating requires the image to be part of list("redis", "nginx, "httpd")
+After applying the mutating and validating file, let us test the webhook server <br>
+The validating requires the image of the POD to be part of list("redis", "nginx, "httpd")  <br>
 
 
 **$ kubectl run testpod --image=nginx**   <br>
    pod/testpod created <br>
 
-Let us if resources and serviceaccount fields have changed as expected <br>
+Let us see if resources requests, limits and serviceaccount fields have changed as expected <br>
 
 **$ kubectl get pods -o yaml**  <br>
 
@@ -166,14 +165,12 @@ I have decided to only show the spec section as this where the changes have been
     serviceAccount: sa         default serviceaccount has been chnaged to sa
     serviceAccountName: sa      default serviceaccount has been chnaged to sa
 
-    In you can see the mutating webhook has performed some changes and validating has validated the pod creation
-
-    Let us test a use case where the image is not part of the list, let us a ubuntu image which is not part of the allowed list in the Flash script
+As you can see the mutating webhook has performed some changes and validating has validated the pod creation  <br>
+Let us test a use case where the image is not part of the list, let us a ubuntu image which is not part of the allowed list in the Flash script  <br>
 
   
-
 **$ kubectl run ubuntu --image=ubuntu**  <br>
- Error from server: admission webhook "validate-webhook.test.com" denied the request: IMAGE(S) NOT IN ALLOWED IMAGES LIST  <br>
+ Error from server: admission webhook "validate-webhook.test.com" denied the request: **IMAGE(S) NOT IN ALLOWED IMAGES LIST**  <br>
 
  As you can the validating has denied the creation of the pod as ubuntu has not been added into the list in the Flask script  <br>
 
