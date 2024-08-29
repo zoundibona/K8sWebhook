@@ -44,29 +44,63 @@ for the validation the path is server.webhook.com:5000/validate. <br>
 The server.webhook.com is my webhook server name, it is not public, a static DNS entry has been added in Kubernetes core dns to resolve the dns name to static IP of the device hosting the server.
 In case you want to host over Internet which I do not advise make sure you can a public domain.
 
-You can check the file mutate-webhook.yaml to see the configuration of the Mutating Webhook Configuration and validate-webhook.yaml for the Validating Webhook Configuration 
+You can check the file mutate-webhook.yaml to see the configuration of the Mutating Webhook Configuration and validate-webhook.yaml for the Validating Webhook Configuration.
+Below is sample of the webhook configuration file. 
+The validating and mutating configurations files are similars, be careful of the kind in the manifest file as they are not the same
 
 
-**apiVersion**: admissionregistration.k8s.io/v1 <br>
-**kind**: ValidatingWebhookConfiguration <br>
-metadata: <br>
+**apiVersion:** admissionregistration.k8s.io/v1 <br>
+**kind:** ValidatingWebhookConfiguration  &nbsp;  &nbsp; &nbsp; &nbsp; **The kind will change to MutatingWebhookConfiguration for mutating manifest file**  <br>
+**metadata:** <br>
  &nbsp;&nbsp; name: validate-webhook <br>
-webhooks: <br>
+**webhooks:** <br>
  &nbsp;&nbsp; - name: validate-webhook.test.com <br>
- &nbsp;&nbsp;&nbsp;rules: <br>
-  - apiGroups:   [""] <br>
-    apiVersions: ["v1"] <br>
-    operations:  ["CREATE"] <br>
-    resources:   ["pods"] <br>
-    scope:       "Namespaced" <br>
-  clientConfig:
-    url: https://server.webhook.com:5000/validate <br>
-    caBundle: <br>
-  admissionReviewVersions: ["v1"] <br>
-  sideEffects: None <br>
-  timeoutSeconds: 5 <br>
+ &nbsp;&nbsp;&nbsp;  rules: <br>
+&nbsp;&nbsp;&nbsp; - apiGroups:   [""] <br>
+ &nbsp; &nbsp;&nbsp;&nbsp; apiVersions: ["v1"] <br>
+ &nbsp; &nbsp;&nbsp;&nbsp; operations:  ["CREATE"] <br>
+   &nbsp;&nbsp;&nbsp; resources:   ["pods"] <br>
+   &nbsp;&nbsp;&nbsp; scope:       "Namespaced" <br>
+&nbsp;&nbsp;&nbsp;   **clientConfig:**  <br>
+   &nbsp;  &nbsp; &nbsp;  &nbsp; **url:** https://server.webhook.com:5000/validate  &nbsp;  &nbsp; &nbsp;  &nbsp;  **This is the webhook server url to be reached**  <br>
+    &nbsp;  &nbsp; &nbsp;  &nbsp; **caBundle:**  LS0tLS.......  &nbsp;  &nbsp; &nbsp;  &nbsp; **This is the CA bundle certificate used to sign the webhook server url, this has to be base64 encoded** <br>   
+  &nbsp;&nbsp; &nbsp; **admissionReviewVersions:** ["v1"] <br>
+  &nbsp;&nbsp; &nbsp; **sideEffects:** None <br>
+  &nbsp;&nbsp; &nbsp; **timeoutSeconds:** 5 <br>
 
   ---
+When this configuration is applied whenever a pod is created the API will reach the webhook server
+
+
+# CREATION OF CA CERTIFICATE AND SERVER CERTIFICATE
+
+
+## GENERATE CA KEY AND CERTIFICATE
+   openssl genrsa 2048 | tee ca-key.pem     **This will generate private key for the CA**
+   
+   openssl req -new -x509 -nodes -days 365000 -key caKey.pem   -out caCert.pem  **This will generate a CA certificate signed with private key created in the previous step**
+
+
+## GENERATE SERVER KEY AND CERTIFICATE
+Kubernetes 1.30 requires SAN certificate, the server.conf file used to create SAN certificate is available in the githug repository 
+
+$ openssl genrsa -out server.key 2048     &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;    **This will generate server private key** <br>
+$ openssl req -new -key server.key -out server.csr -config server.conf   &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;  **This will generate a CSR (Certificate Signing Request)    needed to get the server certificate**  <br>
+$ openssl x509 -req -in server.csr -CA caCert.pem -CAkey caKey.pem -CAcreateserial -out server.crt -days 100000 -extensions v3_req -extfile server.conf    &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; **This will sign the certificate with CA certificate** <br>
+
+At the end of this step, you will get CA cert and private key, server cert and private.
+The CA private key is not needed in kubernetes manifest file, only the CA cert is used to verify the server certificate
+
+# APPLY THE WEBHOOK CONFIG FILES
+
+$ kubectl apply -f mutate-webhook.yaml    <br>
+mutatingwebhookconfiguration.admissionregistration.k8s.io/mutate-webhook created <br>
+$ kubectl apply -f validate-webhook.yaml <br>
+validatingwebhookconfiguration.admissionregistration.k8s.io/validate-webhook created <br>
+
+
+
+
 
 
 
