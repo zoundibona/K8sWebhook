@@ -72,16 +72,16 @@ The validating and mutating configurations files are similars, be careful of the
 When this configuration is applied whenever a pod is created the API will reach the webhook server
 
 
-# CREATION OF CA CERTIFICATE AND SERVER CERTIFICATE
+## CREATION OF CA CERTIFICATE AND SERVER CERTIFICATE
 
 
-## GENERATE CA KEY AND CERTIFICATE
+### GENERATE CA KEY AND CERTIFICATE
    openssl genrsa 2048 | tee ca-key.pem     **This will generate private key for the CA**
    
    openssl req -new -x509 -nodes -days 365000 -key caKey.pem   -out caCert.pem  **This will generate a CA certificate signed with private key created in the previous step**
 
 
-## GENERATE SERVER KEY AND CERTIFICATE
+### GENERATE SERVER KEY AND CERTIFICATE
 Kubernetes 1.30 requires SAN certificate, the server.conf file used to create SAN certificate is available in the githug repository 
 
 $ openssl genrsa -out server.key 2048     &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;    **This will generate server private key** <br>
@@ -91,12 +91,91 @@ $ openssl x509 -req -in server.csr -CA caCert.pem -CAkey caKey.pem -CAcreateseri
 At the end of this step, you will get CA cert and private key, server cert and private.
 The CA private key is not needed in kubernetes manifest file, only the CA cert is used to verify the server certificate
 
-# APPLY THE WEBHOOK CONFIG FILES
+## CHANGES IN DNS
+
+I am using server.webhook.com as the server dns name, since the API server must be able to resolve the dns name into an IP, I have added an entry in kubernetes core dns
+config map
+
+run kubectl edit -n kube-system cm coredns to edit add a static entry. 
+See below file file you will host entry that resolve the dns name to IP
+
+apiVersion: v1
+data:
+  Corefile: |2
+
+    .:53 {
+
+       log
+       errors
+       health {
+          lameduck 5s
+       }
+       ready
+       kubernetes cluster.local in-addr.arpa ip6.arpa {
+          pods insecure
+          fallthrough in-addr.arpa ip6.arpa
+          ttl 30
+       }
+       prometheus :9153
+
+       hosts {
+           192.168.1.4 server.webhook.com
+           fallthrough
+        }
+
+
+## APPLY THE WEBHOOK CONFIG FILES
 
 $ kubectl apply -f mutate-webhook.yaml    <br>
 mutatingwebhookconfiguration.admissionregistration.k8s.io/mutate-webhook created <br>
 $ kubectl apply -f validate-webhook.yaml <br>
 validatingwebhookconfiguration.admissionregistration.k8s.io/validate-webhook created <br>
+
+## TEST OF WEBHOOK SERVER
+
+After applying the mutating and validating file, let us test.
+The mutating add resources request, limits and change service account name
+The validating requires the image to be part of list("redis", "nginx, "httpd")
+
+
+$ kubectl run testpod --image=nginx
+pod/testpod created
+
+vagrant@controlplane:~$ kubectl get pods -o yaml
+
+I have decided to only show the spec section as this where the changes have been made
+
+
+  spec:      
+   
+    containers:   
+    - image: nginx   
+      imagePullPolicy: Always   
+      name: testpod   
+      resources:    
+        limits:      **resources limits has been added**
+          cpu: "2"        
+          memory: 256Mi   
+        requests:      **resources requests has been added**
+          cpu: 500m   
+          memory: 128Mi   
+  
+   
+    serviceAccount: sa         default serviceaccount has been chnaged to sa
+    serviceAccountName: sa      default serviceaccount has been chnaged to sa
+
+    In you can see the mutating webhook has performed some changes and validating has validated the pod creation
+
+    Let us test a use case where the image is not part of the list, let us a ubuntu image which is not part of the allowed list in the Flash script
+
+    $ kubectl run ubuntu --image=ubuntu
+    Error from server: admission webhook "validate-webhook.test.com" denied the request: IMAGE(S) NOT IN ALLOWED IMAGES LIST
+
+  
+ 
+    
+
+
 
 
 
