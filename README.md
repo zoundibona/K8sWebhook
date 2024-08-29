@@ -17,7 +17,10 @@ Here in this case I will be using a custom script developed in Python Flash to m
 
 # REQUIREMENTS
 
-When the API server receives a request the API server will trigger the webhook running the flask script, the API server as of 1.30 version requires https to reach the webhook server
+There two ways to run the webhook server, you can run as external server like I did or run it as POD running within the same cluster
+For this setup the webhook is running as external server.
+When the API server receives a request the API server will trigger the webhook running the flask script, the API server as of 1.30 version requires https to reach the webhook server.
+
 It means that the server must have private key and SSL certificate.
 The API server will also need the CA certificate to verify the server certificate.
 So here a CA certificate and key have been created and used to sign server certificate
@@ -30,19 +33,38 @@ So here a CA certificate and key have been created and used to sign server certi
 
 
 Kindly note that kubernetes does not accept CN (Common Name) certificate but rather SAN (Subject Alternative Name)
-In case you can look over the internet to know the differences between the two certificates you can search o Internet
+In case you can look over the internet to know the differences between the two certificates you can search over Internet
 
 
 
 # SETUP
 
-Kindly check into the github repository for the flask script, the same script does both mutation and validation, for mutation the path is server.webhook.com:5000/mutate
+Kindly check into the github repository for the flask script called (webhookserver.py), the same script does both mutation and validation, for mutation the path is server.webhook.com:5000/mutate
 for the validation the path is server.webhook.com:5000/validate. <br>
 The server.webhook.com is my webhook server name, it is not public, a static DNS entry has been added in Kubernetes core dns to resolve the dns name to static IP of the device hosting the server.
-In case you want to host over Interne which I do not advise make sure you can a public domain.
+In case you want to host over Internet which I do not advise make sure you can a public domain.
+
+You can check the file mutate-webhook.yaml to see the configuration of the Mutating Webhook Configuration and validate-webhook.yaml for the Validating Webhook Configuration 
 
 
-
+**apiVersion**: admissionregistration.k8s.io/v1 <br>
+**kind**: ValidatingWebhookConfiguration <br>
+metadata: <br>
+  name: validate-webhook <br>
+webhooks: <br>
+- name: validate-webhook.test.com <br>
+  rules: <br>
+  - apiGroups:   [""] <br>
+    apiVersions: ["v1"] <br>
+    operations:  ["CREATE"] <br>
+    resources:   ["pods"] <br>
+    scope:       "Namespaced" <br>
+  clientConfig:
+    url: https://server.webhook.com:5000/validate <br>
+    caBundle: <br>
+  admissionReviewVersions: ["v1"] <br>
+  sideEffects: None <br>
+  timeoutSeconds: 5 <br>
 
 
 
