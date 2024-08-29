@@ -50,10 +50,10 @@ You can check the file mutate-webhook.yaml to see the configuration of the Mutat
 **apiVersion**: admissionregistration.k8s.io/v1 <br>
 **kind**: ValidatingWebhookConfiguration <br>
 metadata: <br>
-  name: validate-webhook <br>
+ &nbsp;&nbsp; name: validate-webhook <br>
 webhooks: <br>
-- name: validate-webhook.test.com <br>
-  rules: <br>
+ &nbsp;&nbsp; - name: validate-webhook.test.com <br>
+ &nbsp;&nbsp;&nbsp;rules: <br>
   - apiGroups:   [""] <br>
     apiVersions: ["v1"] <br>
     operations:  ["CREATE"] <br>
@@ -65,6 +65,8 @@ webhooks: <br>
   admissionReviewVersions: ["v1"] <br>
   sideEffects: None <br>
   timeoutSeconds: 5 <br>
+
+  ---
 
 
 
