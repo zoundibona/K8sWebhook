@@ -166,9 +166,10 @@ I have decided to only show the spec section as this where the changes have been
     serviceAccountName: sa      default serviceaccount has been chnaged to sa
 
 As you can see the mutating webhook has performed some changes and validating has validated the pod creation  <br>
-Let us test a use case where the image is not part of the list, let us a ubuntu image which is not part of the allowed list in the Flash script  <br>
 
-  
+
+
+Let us test a use case where the image is not part of the list, let us a ubuntu image which is not part of the allowed list in the Flash script  <br>  
 **$ kubectl run ubuntu --image=ubuntu**  <br>
  Error from server: admission webhook "validate-webhook.test.com" denied the request: **IMAGE(S) NOT IN ALLOWED IMAGES LIST**  <br>
 
