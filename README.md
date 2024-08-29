@@ -187,8 +187,8 @@ I have decided to only show the spec section as this is where the changes have b
     serviceAccount: sa         **default serviceaccount has been chnaged to sa**
     serviceAccountName: sa      **default serviceaccountName has been chnaged to sa**
 
-As you can see the mutating webhook has performed some changes, the serviceaccountName and resources were not specified when the POD was created but at the end they have been added. After the mutating stage the validating took place to validate the pod creation.  <br>
-It is also possible to use the yaml definition (declarative) instead imperative mode used in this case
+As you can see the mutating webhook has performed some changes, the serviceAccountName and resources were not specified when the POD was created but at the end they have been added. After the mutating stage the validating took place to validate the pod creation.  <br>
+It is also possible to use yaml definition file (declarative mode) to create the POD instead imperative mode used in this case
 
 
 
@@ -200,6 +200,7 @@ Let us test a use case where the image is not part of the list, let us a ubuntu 
  Error from server: admission webhook "validate-webhook.test.com" denied the request: **IMAGE(S) NOT IN ALLOWED IMAGES LIST**  <br>
  <br> 
  As you can see the validating has denied the creation of the pod as ubuntu has not been added into the list in the Flask script  <br>
+ The message returned by webhook is **IMAGE(S) NOT IN ALLOWED IMAGES LIST**, this message can be customized
 
   
  
