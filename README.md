@@ -11,19 +11,24 @@
 # KUBERNETES WEBHOOK 
 
 Admission webhooks are HTTP callbacks that receive admission requests and do something with them. You can define two types of admission webhooks, validating admission webhook and mutating admission webhook. Mutating admission webhooks are invoked first, and can modify objects sent to the API server to enforce custom defaults. After all object modifications are complete, and after the incoming object is validated by the API server, validating admission webhooks are invoked and can reject requests to enforce custom policies. <br>
+
 Webook provide a security layer as it can deny some kubernetes objects to be created if they do not some criterias like the image and labels, ...
 An example could be a situation where you can predefined a list of allowed images, if the pod image to be created is not part of the list then pod creation will be rejected.
-Here in this case I will be using a custom script developed in Python Flash to mutate and validate kubernetes pod objects creation
+Here in this case I will be using a custom script developed in Python Flash to mutate the pod details and validate pod creation.
+
+When the API server reaches the webhook it expects a reponse which contains a field **Allow** .
+If this field is set to **Yes** then the request is allowed and Kubernetes can mutate/validate the request, otherwise the request is rejected by the API server
 
 # REQUIREMENTS
 
-There two ways to run the webhook server, you can run as external server like I did or run it as POD running within the same cluster
-For this setup the webhook is running as external server.
-When the API server receives a request the API server will trigger the webhook running the flask script, the API server as of 1.30 version requires https to reach the webhook server.
+There are two ways to run the webhook server, you can run it as external server like I did or run it as POD running within the same cluster.
+For this setup the webhook is running as external server. 
+As of Kubernetes 1.30 the API server requires https to reach the server.
+It means that the server must have SSL certificate.
+The API server will also need the CA certificate to verify the server certificate.  <br>
 
-It means that the server must have private key and SSL certificate.
-The API server will also need the CA certificate to verify the server certificate.
-So here a CA certificate and key have been created and used to sign server certificate
+
+below a summary of the requirements : <br>
 
 * Python Flash Script (Version 3.0.3)
 * Server certificate and key
@@ -31,23 +36,23 @@ So here a CA certificate and key have been created and used to sign server certi
 * Kubernetes cluster (I used 1.30)
   
 
-
 Kindly note that kubernetes does not accept CN (Common Name) certificate but rather SAN (Subject Alternative Name)
-In case you can look over the internet to know the differences between the two certificates you can search over Internet
+In case you want to know the differences between CN and SAN you can search over the internet.
 
 
 
 # SETUP
 
-Kindly check into the github repository for the flask script called (webhookserver.py), the same script does both mutation and validation, for mutation the path is server.webhook.com:5000/mutate
-for the validation the path is server.webhook.com:5000/validate. <br>
-The server.webhook.com is my webhook server name, it is not public, a static DNS entry has been added in Kubernetes core dns to resolve the dns name to static IP of the device hosting the server.
-In case you want to host over Internet which I do not advise make sure you can a public domain.
+Kindly check into the github repository for the flask script called (webhookserver.py), the same script does both mutation and validation, for mutation the path is server.webhook.com:5000/mutate while for the validation the path is server.webhook.com:5000/validate. <br>
 
-You can check the file mutate-webhook.yaml to see the configuration of the Mutating Webhook Configuration and validate-webhook.yaml for the Validating Webhook Configuration.
-Below is sample of the webhook configuration file. 
-The validating and mutating configurations files are similars, be careful of the kind in the manifest file as they are not the same
+The server.webhook.com is the webhook server name, it is not public, a static DNS entry has been added in Kubernetes core dns to resolve the dns name to static IP of the device hosting the server.
+In case you want to host over Internet which I do not advise make sure you have a public domain.
 
+You can check the file mutate-webhook.yaml to see the configuration of the Mutating Webhook Configuration and validate-webhook.yaml for the Validating Webhook Configuration, they are available in this github repository  <br>
+
+Below is sample of a webhook configuration file.   <br>
+
+---
 
 **apiVersion:** admissionregistration.k8s.io/v1 <br>
 **kind:** ValidatingWebhookConfiguration  &nbsp;  &nbsp; &nbsp; &nbsp; **The kind will change to MutatingWebhookConfiguration for mutating manifest file**  <br>
@@ -63,7 +68,7 @@ The validating and mutating configurations files are similars, be careful of the
    &nbsp;&nbsp;&nbsp; scope:       "Namespaced" <br>
 &nbsp;&nbsp;&nbsp;   **clientConfig:**  <br>
    &nbsp;  &nbsp; &nbsp;  &nbsp; **url:** https://server.webhook.com:5000/validate  &nbsp;  &nbsp; &nbsp;  &nbsp;  **This is the webhook server url to be reached**  <br>
-    &nbsp;  &nbsp; &nbsp;  &nbsp; **caBundle:**  LS0tLS.......  &nbsp;  &nbsp; &nbsp;  &nbsp; **This is the CA bundle certificate used to sign the webhook server url, this has to be base64 encoded** <br>   
+    &nbsp;  &nbsp; &nbsp;  &nbsp; **caBundle:**  LS0tLS.......  &nbsp;  &nbsp; &nbsp;  &nbsp;&nbsp;  &nbsp; &nbsp;  &nbsp;  **This is the CA bundle certificate used to sign the webhook server url, this has to be base64 encoded** <br>   
   &nbsp;&nbsp; &nbsp; **admissionReviewVersions:** ["v1"] <br>
   &nbsp;&nbsp; &nbsp; **sideEffects:** None <br>
   &nbsp;&nbsp; &nbsp; **timeoutSeconds:** 5 <br>
@@ -72,16 +77,17 @@ The validating and mutating configurations files are similars, be careful of the
 When this configuration is applied whenever a pod is created the API will reach the webhook server
 
 
-## CREATION OF CA CERTIFICATE AND SERVER CERTIFICATE
+## &nbsp; STEP1 : CREATION OF CA CERTIFICATE AND SERVER CERTIFICATE
 
 
-### GENERATE CA KEY AND CERTIFICATE
-   openssl genrsa 2048 | tee ca-key.pem     **This will generate private key for the CA**
-   
-   openssl req -new -x509 -nodes -days 365000 -key caKey.pem   -out caCert.pem  **This will generate a CA certificate signed with private key created in the previous step**
+* ### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; GENERATE CA KEY AND CERTIFICATE
 
 
-### GENERATE SERVER KEY AND CERTIFICATE
+   openssl genrsa 2048 | tee caKey.pem    &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;  **This will generate private key for the CA**  <br>
+   openssl req -new -x509 -nodes -days 365000 -key caKey.pem   -out caCert.pem   &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; **This will generate a CA certificate signed with private key created in the previous step** <br>
+
+
+* ### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; GENERATE SERVER KEY AND CERTIFICATE
 Kubernetes 1.30 requires SAN certificate, the server.conf file used to create SAN certificate is available in the github repository 
 
 $ openssl genrsa -out server.key 2048     &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;    **This will generate server private key** <br>
@@ -91,17 +97,19 @@ $ openssl x509 -req -in server.csr -CA caCert.pem -CAkey caKey.pem -CAcreateseri
 At the end of this step, you will get CA cert and private key, server cert and private.
 The CA private key is not needed in kubernetes manifest file, only the CA cert is used to verify the server certificate
 
-## CHANGES IN DNS
+## &nbsp; STEP 2:  CHANGES IN KUBERNETES CORE DNS
 
 I am using server.webhook.com as the server dns name, since the API server must be able to resolve the dns name into an IP, I have added an entry in kubernetes core dns
 config map
 
-run kubectl edit -n kube-system cm coredns to edit add a static entry. 
+run the below command:  <br>
+kubectl edit -n kube-system cm coredns <br>
+
+This will edit the configmap used for Kubernetes core DNS. 
 See below file you will find a host entry that resolve the dns name to IP
 
-apiVersion: v1
-data:
-  Corefile: |2
+
+
 
     .:53 {
 
@@ -124,30 +132,30 @@ data:
         }
 
 
-## APPLY THE WEBHOOK CONFIG FILES
+##  &nbsp; STEP 3 :APPLY THE WEBHOOK CONFIG FILES
 
 **$ kubectl apply -f mutate-webhook.yaml**    <br>
 mutatingwebhookconfiguration.admissionregistration.k8s.io/mutate-webhook created <br>
 **$ kubectl apply -f validate-webhook.yaml** <br>
 validatingwebhookconfiguration.admissionregistration.k8s.io/validate-webhook created <br>
 
-## TEST OF WEBHOOK SERVER
+##  &nbsp; STEP 4: TEST OF WEBHOOK SERVER
 
 After applying the mutating and validating file, let us test the webhook server <br>
 The validating requires the image of the POD to be part of list("redis", "nginx, "httpd")  <br>
 
-### SCENARIO 1
+* ### SCENARIO 1
 
 In this scenario we will use a case where the POD image is part of the list ("redis", "nginx, "httpd") as defined in the Flask script
 
 **$ kubectl run testpod --image=nginx**   <br>
-   pod/testpod created <br>
+   pod/testpod created 
 
-Let us see if resources requests, limits and serviceaccount fields have changed as expected <br>
+Now that the POD has been created, let us see if resources requests, limits and serviceaccount fields have been modified as expected, let us run the below command
 
 **$ kubectl get pods -o yaml**  <br>
 
-I have decided to only show the spec section as this where the changes have been made
+I have decided to only show the spec section as this is where the changes have been made by the script
 
 
   spec:      
@@ -172,11 +180,12 @@ As you can see the mutating webhook has performed some changes and validating we
 
 
 
-### SCENARIO 2
+* ### SCENARIO 2
 Let us test a use case where the image is not part of the list, let us a ubuntu image which is not part of the allowed list in the Flash script  <br>  
+
 **$ kubectl run ubuntu --image=ubuntu**  <br>
  Error from server: admission webhook "validate-webhook.test.com" denied the request: **IMAGE(S) NOT IN ALLOWED IMAGES LIST**  <br>
-
+ <br> 
  As you can the validating has denied the creation of the pod as ubuntu has not been added into the list in the Flask script  <br>
 
   
