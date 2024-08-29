@@ -37,7 +37,7 @@ In case you can look over the internet to know the differences between the two c
 # SETUP
 
 Kindly check into the github repository for the flask script, the same script does both mutation and validation, for mutation the path is server.webhook.com:5000/mutate
-for the validation the path is server.webhook.com:5000/validate. 
+for the validation the path is server.webhook.com:5000/validate. <br>
 The server.webhook.com is my webhook server name, it is not public, a static DNS entry has been added in Kubernetes core dns to resolve the dns name to static IP of the device hosting the server.
 In case you want to host over Interne which I do not advise make sure you can a public domain.
 
