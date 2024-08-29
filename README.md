@@ -82,7 +82,7 @@ When this configuration is applied whenever a pod is created the API will reach 
 
 
 ### GENERATE SERVER KEY AND CERTIFICATE
-Kubernetes 1.30 requires SAN certificate, the server.conf file used to create SAN certificate is available in the githug repository 
+Kubernetes 1.30 requires SAN certificate, the server.conf file used to create SAN certificate is available in the github repository 
 
 $ openssl genrsa -out server.key 2048     &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;    **This will generate server private key** <br>
 $ openssl req -new -key server.key -out server.csr -config server.conf   &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;  **This will generate a CSR (Certificate Signing Request)    needed to get the server certificate**  <br>
@@ -97,7 +97,7 @@ I am using server.webhook.com as the server dns name, since the API server must 
 config map
 
 run kubectl edit -n kube-system cm coredns to edit add a static entry. 
-See below file file you will host entry that resolve the dns name to IP
+See below file you will find a host entry that resolve the dns name to IP
 
 apiVersion: v1
 data:
@@ -126,9 +126,9 @@ data:
 
 ## APPLY THE WEBHOOK CONFIG FILES
 
-$ kubectl apply -f mutate-webhook.yaml    <br>
+**$ kubectl apply -f mutate-webhook.yaml**    <br>
 mutatingwebhookconfiguration.admissionregistration.k8s.io/mutate-webhook created <br>
-$ kubectl apply -f validate-webhook.yaml <br>
+**$ kubectl apply -f validate-webhook.yaml** <br>
 validatingwebhookconfiguration.admissionregistration.k8s.io/validate-webhook created <br>
 
 ## TEST OF WEBHOOK SERVER
@@ -138,10 +138,12 @@ The mutating add resources request, limits and change service account name
 The validating requires the image to be part of list("redis", "nginx, "httpd")
 
 
-$ kubectl run testpod --image=nginx
-pod/testpod created
+**$ kubectl run testpod --image=nginx**   <br>
+   pod/testpod created <br>
 
-vagrant@controlplane:~$ kubectl get pods -o yaml
+Let us if resources and serviceaccount fields have changed as expected <br>
+
+**$ kubectl get pods -o yaml**  <br>
 
 I have decided to only show the spec section as this where the changes have been made
 
@@ -168,8 +170,12 @@ I have decided to only show the spec section as this where the changes have been
 
     Let us test a use case where the image is not part of the list, let us a ubuntu image which is not part of the allowed list in the Flash script
 
-    $ kubectl run ubuntu --image=ubuntu
-    Error from server: admission webhook "validate-webhook.test.com" denied the request: IMAGE(S) NOT IN ALLOWED IMAGES LIST
+  
+
+**$ kubectl run ubuntu --image=ubuntu**  <br>
+ Error from server: admission webhook "validate-webhook.test.com" denied the request: IMAGE(S) NOT IN ALLOWED IMAGES LIST  <br>
+
+ As you can the validating has denied the creation of the pod as ubuntu has not been added into the list in the Flask script  <br>
 
   
  
