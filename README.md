@@ -45,7 +45,7 @@ In case you want to know the differences between CN and SAN you can search over 
 
 Kindly check into the github repository for the flask script called (webhookserver.py), the same script does both mutation and validation, for mutation the path is server.webhook.com:5000/mutate while for the validation the path is server.webhook.com:5000/validate. <br>
 
-The server.webhook.com is the webhook server name, it is not public, a static DNS entry has been added in Kubernetes core dns to resolve the dns name to static IP of the device hosting the server.
+The server.webhook.com is the webhook server name, it is not public, a static DNS entry has been added in Kubernetes Core DNS to resolve the DNS name to static IP of the device hosting the server.
 In case you want to host over Internet which I do not advise make sure you have a public domain.
 
 You can check the file mutate-webhook.yaml to see the configuration of the Mutating Webhook Configuration and validate-webhook.yaml for the Validating Webhook Configuration, they are available in this github repository  <br>
@@ -84,22 +84,27 @@ When this configuration is applied whenever a pod is created the API will reach 
 
 
    openssl genrsa 2048 | tee caKey.pem    &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;  **This will generate private key for the CA**  <br>
-   openssl req -new -x509 -nodes -days 365000 -key caKey.pem   -out caCert.pem   &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; **This will generate a CA certificate signed with private key created in the previous step** <br>
+   openssl req -new -x509 -nodes -days 365000 -key caKey.pem   -out caCert.pem   &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;  **This will generate a self signed certificate** <br>
 
 
 * ### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; GENERATE SERVER KEY AND CERTIFICATE
 Kubernetes 1.30 requires SAN certificate, the server.conf file used to create SAN certificate is available in the github repository 
 
 $ openssl genrsa -out server.key 2048     &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;    **This will generate server private key** <br>
-$ openssl req -new -key server.key -out server.csr -config server.conf   &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;  **This will generate a CSR (Certificate Signing Request)    needed to get the server certificate**  <br>
-$ openssl x509 -req -in server.csr -CA caCert.pem -CAkey caKey.pem -CAcreateserial -out server.crt -days 100000 -extensions v3_req -extfile server.conf    &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; **This will sign the certificate with CA certificate** <br>
 
-At the end of this step, you will get CA cert and private key, server cert and private.
-The CA private key is not needed in kubernetes manifest file, only the CA cert is used to verify the server certificate
+$ openssl req -new -key server.key -out server.csr -config server.conf   &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;  **This will generate a CSR (Certificate Signing Request) <br> &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp;needed to get the server certificate**  <br>
+<br>
+$ openssl x509 -req -in server.csr -CA caCert.pem -CAkey caKey.pem \\    &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **This will sign the certificate with CA certificate**<br>
+-CAcreateserial \\ <br>
+-out server.crt -days 100000 -extensions v3_req -extfile server.conf       <br>
+
+At the end of this step, you will get CA certificate and private key, server certificate and private key.
+The server certificate and private key are required in the Flask script to setup  https server.
+The CA private key is not needed in kubernetes manifest file, only the CA certificate is used to verify the server certificate
 
 ## &nbsp; STEP 2:  CHANGES IN KUBERNETES CORE DNS
 
-I am using server.webhook.com as the server dns name, since the API server must be able to resolve the dns name into an IP, I have added an entry in kubernetes core dns
+I am using server.webhook.com as the server DNS name, since the API server must be able to resolve the DNS name into an IP, I have added an entry in kubernetes core DNS
 config map
 
 run the below command:  <br>
@@ -132,6 +137,8 @@ See below file you will find a host entry that resolve the dns name to IP
         }
 
 
+To test that the entry is successful, you use a POD that supports shell, like nginx. Install dns-utils and try nslookup "dns.name". 
+If the DNS is able to resolve then it means it works. It is also possible in Webhook manifest file to use the static IP instead of the DNS name
 ##  &nbsp; STEP 3 :APPLY THE WEBHOOK CONFIG FILES
 
 **$ kubectl apply -f mutate-webhook.yaml**    <br>
@@ -165,16 +172,16 @@ I have decided to only show the spec section as this is where the changes have b
       imagePullPolicy: Always   
       name: testpod   
       resources:    
-        limits:      **resources limits has been added**
+        limits:      **resources limits have been added**
           cpu: "2"        
           memory: 256Mi   
-        requests:      **resources requests has been added**
+        requests:      **resources requests have been added**
           cpu: 500m   
           memory: 128Mi   
   
    
     serviceAccount: sa         **default serviceaccount has been chnaged to sa**
-    serviceAccountName: sa      **default serviceaccount has been chnaged to sa**
+    serviceAccountName: sa      **default serviceaccountName has been chnaged to sa**
 
 As you can see the mutating webhook has performed some changes and validating webhook has validated the pod creation  <br>
 
@@ -186,7 +193,7 @@ Let us test a use case where the image is not part of the list, let us a ubuntu 
 **$ kubectl run ubuntu --image=ubuntu**  <br>
  Error from server: admission webhook "validate-webhook.test.com" denied the request: **IMAGE(S) NOT IN ALLOWED IMAGES LIST**  <br>
  <br> 
- As you can the validating has denied the creation of the pod as ubuntu has not been added into the list in the Flask script  <br>
+ As you can see the validating has denied the creation of the pod as ubuntu has not been added into the list in the Flask script  <br>
 
   
  
