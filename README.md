@@ -20,7 +20,7 @@ When the API server reaches the webhook it expects a reponse which contains a fi
 If this field is set to **Yes** then the request is allowed and Kubernetes can mutate/validate the request, otherwise the request is rejected by the API server.
 
 
-# KUBERNETES WEBHOOK FLOW
+# KUBERNETES WEBHOOK REQUEST/RESPONSE
 Webhooks are sent as POST requests from the API server to webhook server, with Content-Type: application/json, and expected a reponse in JSON format
 
 * ## KUBERNETES WEBHOOK REQUEST
@@ -250,7 +250,8 @@ I am using server.webhook.com as the server DNS name, since the API server must 
 config map
 
 run the below command:  <br>
-**kubectl edit -n kube-system cm coredns** <br>
+
+kubectl edit -n kube-system cm coredns <br>
 
 This will edit the configmap used for Kubernetes core DNS. 
 You will find a host entry in below output that resolves the dns name(server.webhook.com) to IP (192.168.1.4 which is IP of webhook server)
