@@ -94,17 +94,19 @@ A typical webhook request from the API server will look like this :
     }
 
 
-Of course the content will not always be the same, meanwhile they are some importants fields here
-Among the most important fields there is the UID available at json_data["request"]["uid"], the UID identifies the request and the response to the API server must also use the same UID when responding to the API server.
+Of course the content will not always be the same, meanwhile they are some importants fields here I will mention.
 
-The second important field is "spec" of the resources it is available at ["request"]["object"]["spec"], this is like spec under a POD configuration.
-Here you can extract the data and provide a response to the API server
+Among the most importantw fields there is the request "UID"  available at json_data["request"]["uid"], the UID identifies the request and the response to the API server from the webhook server must also use the same UID.
+
+The second important field is "spec" , it is available at ["request"]["object"]["spec"], this is like spec under a POD yaml configuration.
+Here you can extract the data in spec section and allow or reject the request.
+
 
 * ## KUBERNETES WEBHOOK RESPONSE
 
-Webhooks respond with a 200 HTTP status code, Content-Type: application/json, and a body containing an AdmissionReview object (in the same version they were sent), with the response stanza populated, serialized to JSON.
+Webhooks respond with a 200 HTTP status code, Content-Type: application/json, and a body containing an AdmissionReview object (in the same version they were sent), with the response sterialized to JSON.
 
-At a minimum, the response stanza must contain the following fields:
+At a minimum, the response  must contain the following fields:
 
 uid, copied from the request.uid sent to the webhook
 allowed, either set to true or false
@@ -140,6 +142,9 @@ Example of a minimal response from a webhook to reject a request:
 For mutating webhook when allowing a request, a mutating admission webhook may optionally modify the incoming object as well. This is done using the patch and patchType fields in the response. The only currently supported patchType is JSONPatch. See JSON patch documentation for more details. For patchType: JSONPatch, the patch field contains a base64-encoded array of JSON patch operations.
 
 As an example, a single patch operation that would set spec.replicas would be [{"op": "add", "path": "/spec/replicas", "value": 3}]
+"op": "add" means that the API server should add, 
+"path": "/spec/replicas" show the path of the data to be modified
+"value": 3 means the replicas will be set to 3 
 
     {
       "apiVersion": "admission.k8s.io/v1",
