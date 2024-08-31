@@ -16,7 +16,7 @@ allowed_images=("nginx","redis","httpd") #List of allowed images.
 def validate_request(index):
      
     json_data=request.json    # to retrieve the JSON data sent by the API server
-    json_containers=json_data["request"]["object"]["spec"]["containers"] # to access the conatiners data
+    json_containers=json_data["request"]["object"]["spec"]["containers"] # to access the containers data
     json_uid=json_data["request"]["uid"] # to access the UID of the request
       
     if index=="validate" :       # Validating webhook       
@@ -53,7 +53,7 @@ def validate_request(index):
                   }
          return (reponse)
       
-    elif index=="mutate":               # Validating webhook 
+    elif index=="mutate":               # Mutating webhook 
           
 
          container_id=0
