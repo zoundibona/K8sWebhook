@@ -12,16 +12,16 @@
 
 Admission webhooks are HTTP callbacks that receive admission requests and do something with them. You can define two types of admission webhooks, validating admission webhook and mutating admission webhook. Mutating admission webhooks are invoked first, and can modify objects sent to the API server to enforce custom defaults. After all object modifications are complete, and after the incoming object is validated by the API server, validating admission webhooks are invoked and can reject requests to enforce custom policies. <br>
 
-Webook provide a security layer as it can deny some kubernetes objects to be created if they do not some criterias like the image and labels, ...
-An example could be a situation where you can predefined a list of allowed images, if the pod image to be created is not part of the list then pod creation will be rejected.
+Webooks provide a security layer as they can deny some kubernetes objects to be created if they do not meet some criterias like the POD image not in the allowed list.
+An example could be a situation where you can predefine a list of allowed images, if the pod image to be created is not part of the list then pod creation will not be allowed.
 Here in this case I will be using a custom script developed in Python Flash to mutate the pod details and validate pod creation.
 
 When the API server reaches the webhook it expects a reponse which contains a field **Allow** .
-If this field is set to **Yes** then the request is allowed and Kubernetes can mutate/validate the request, otherwise the request is rejected by the API server
+If this field is set to **Yes** then the request is allowed and Kubernetes can mutate/validate the request, otherwise the request is rejected by the API server.
 
 
 # KUBERNETES WEBHOOK FLOW
-Webhooks are sent as POST requests from the API server to webhook server, with Content-Type: application/json, with an AdmissionReview API object in the admission.k8s.io API group serialized to JSON as the body.
+Webhooks are sent as POST requests from the API server to webhook server, with Content-Type: application/json, and expected a reponse in JSON format
 
 * ## KUBERNETES WEBHOOK REQUEST
 A typical webhook request from the API server will look like this :
@@ -31,11 +31,9 @@ A typical webhook request from the API server will look like this :
       "apiVersion": "admission.k8s.io/v1beta1",
       "request": {
         "uid": "0df28fbd-5f5f-11e8-bc74-36e6bb280816",
-        "kind": {
-          "group": "",
-          "version": "v1",
-          "kind": "Pod"
-        },
+
+       Truncated ...
+       
         "resource": {
           "group": "",
           "version": "v1",
@@ -96,7 +94,7 @@ A typical webhook request from the API server will look like this :
 
 Of course the content will not always be the same, meanwhile they are some importants fields here I will mention.
 
-Among the most importantw fields there is the request "UID"  available at json_data["request"]["uid"], the UID identifies the request and the response to the API server from the webhook server must also use the same UID.
+Among the most importants fields there is the request "UID"  available at json["request"]["uid"], the UID identifies the request sent from the API server, the response to the API server from the webhook server must also use the same UID.
 
 The second important field is "spec" , it is available at ["request"]["object"]["spec"], this is like spec under a POD yaml configuration.
 Here you can extract the data in spec section and allow or reject the request.
@@ -108,8 +106,9 @@ Webhooks respond with a 200 HTTP status code, Content-Type: application/json, an
 
 At a minimum, the response  must contain the following fields:
 
-uid, copied from the request.uid sent to the webhook
-allowed, either set to true or false
+* uid, copied from the request.uid sent to the webhook
+* allowed, either set to true or false
+  
 Example of a minimal response from a webhook to allow a request:
 
 
@@ -118,12 +117,12 @@ Example of a minimal response from a webhook to allow a request:
       "kind": "AdmissionReview",
       "response": {
         "uid": "<value from request.uid>",
-        "allowed": true
+        "allowed": true   
       }
     }
 
 
-Example of a minimal response from a webhook to reject a request:
+Below is an example of a minimal response from a webhook to reject a request:
 
 
     {
@@ -131,7 +130,7 @@ Example of a minimal response from a webhook to reject a request:
     "kind": "AdmissionReview",
     "response": {
       "uid": "<value from request.uid>",
-      "allowed": false,
+      "allowed": false,  
       "status": {
         "code": 403,
         "message": "You cannot do this because it is Tuesday and your name starts with A"
@@ -139,12 +138,13 @@ Example of a minimal response from a webhook to reject a request:
       }
     }
 
-For mutating webhook when allowing a request, a mutating admission webhook may optionally modify the incoming object as well. This is done using the patch and patchType fields in the response. The only currently supported patchType is JSONPatch. See JSON patch documentation for more details. For patchType: JSONPatch, the patch field contains a base64-encoded array of JSON patch operations.
 
-As an example, a single patch operation that would set spec.replicas would be [{"op": "add", "path": "/spec/replicas", "value": 3}]
-"op": "add" means that the API server should add, 
-"path": "/spec/replicas" show the path of the data to be modified
-"value": 3 means the replicas will be set to 3 
+For mutating webhook, a mutating admission webhook may optionally modify the incoming object as well. This is done using the patch and patchType fields in the response. The only currently supported patchType is JSONPatch. See JSON patch documentation for more details. For patchType: JSONPatch, the patch field contains a base64-encoded array of JSON patch operations.
+
+As an example, a single patch operation that would set spec.replicas would be [{"op": "add", "path": "/spec/replicas", "value": 3}] <br>
+**"op": "add"**       means that the API server should perform add operation  <br>
+**"path": "/spec/replicas"**     shows the path of the data that will be affected   <br>
+**"value": 3**       means the replicas will be set to 3   <br>
 
     {
       "apiVersion": "admission.k8s.io/v1",
@@ -159,9 +159,9 @@ As an example, a single patch operation that would set spec.replicas would be [{
 
 # REQUIREMENTS
 
-There are two ways to run the webhook server, you can run it as external server like I did or run it as POD running within the same cluster.
+There are two ways to run the webhook server, you can run it as external server like I did or run it as POD available within the same cluster.
 For this setup the webhook is running as external server. 
-As of Kubernetes 1.30 the API server requires https to reach the server.
+As of Kubernetes 1.30 the API server requires https to reach the webhook server.
 It means that the server must have SSL certificate.
 The API server will also need the CA certificate to verify the server certificate.  <br>
 
@@ -183,14 +183,14 @@ In case you want to know the differences between CN and SAN you can search over 
 
 Kindly check into the github repository for the flask script called **(webhookserver.py)**, the same script does both mutation and validation, for mutation the path is **server.webhook.com:5000/mutate** while for the validation the path is **server.webhook.com:5000/validate**. <br>
 
-When there is an attempt to create a POD, the request is sent to the API server because both mutating and validating are applied, the request goes first through the mutating step. <br>
-At this stage the Flask script will change some fields like serviceAccountName, and also add resources requests and limits to the containers.
-After completing the mutating stage, it goes to now to validating stage, if the containers in the POD have images in the list defined in the script then it will be created otherwise it will be rejected
+When there is an attempt to create a POD, the request is sent to the API server, because both mutating and validating are applied, the request goes first through the mutating step. <br>
+At this stage the Flask script will change some fields like serviceAccountName, and also add resources requests and limits of the containers.
+After completing the mutating stage, it goes to the validating stage, if the containers in the POD have images in the list defined in the script then it will be created otherwise it will be rejected.
 
-The server.webhook.com is the webhook server name, it is not public, a static DNS entry has been added in Kubernetes Core DNS to resolve the DNS name to static IP of the device hosting the server.
-In case you want to host over Internet which I do not advise make sure you have a public domain.
+The server.webhook.com is the webhook server name, it is not public, a static DNS entry has been added in Kubernetes Core DNS to resolve the DNS name to static IP.
+In case you want to host over Internet which I do not advise, make sure you have a public domain.
 
-You can check the file mutate-webhook.yaml to see the configuration of the Mutating Webhook Configuration and validate-webhook.yaml for the Validating Webhook Configuration, they are available in this github repository  <br>
+You can check the file **mutate-webhook.yaml** to see the configurations of the Mutating Webhook and **validate-webhook.yaml** for the Validating Webhook Configuration, they are available in this github repository  <br>
 
 Below is sample of a webhook configuration file.   <br>
 
