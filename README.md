@@ -19,6 +19,139 @@ Here in this case I will be using a custom script developed in Python Flash to m
 When the API server reaches the webhook it expects a reponse which contains a field **Allow** .
 If this field is set to **Yes** then the request is allowed and Kubernetes can mutate/validate the request, otherwise the request is rejected by the API server
 
+
+# KUBERNETES WEBHOOK FLOW
+Webhooks are sent as POST requests from the API server to webhook server, with Content-Type: application/json, with an AdmissionReview API object in the admission.k8s.io API group serialized to JSON as the body.
+
+* ## KUBERNETES WEBHOOK REQUEST
+A typical webhook request from the API server will look like this :
+    
+    {
+      "kind": "AdmissionReview",
+      "apiVersion": "admission.k8s.io/v1beta1",
+      "request": {
+        "uid": "0df28fbd-5f5f-11e8-bc74-36e6bb280816",
+        "kind": {
+          "group": "",
+          "version": "v1",
+          "kind": "Pod"
+        },
+        "resource": {
+          "group": "",
+          "version": "v1",
+          "resource": "pods"
+        },
+        "namespace": "default",
+        "operation": "CREATE",
+        "userInfo": {
+          "username": "system:serviceaccount:kube-system:replicaset-controller",
+          "uid": "a7e0ab33-5f29-11e8-8a3c-36e6bb280816",
+          "groups": [
+            "system:serviceaccounts",
+            "system:serviceaccounts:kube-system",
+            "system:authenticated"
+          ]
+        },
+        "object": {
+          "metadata": {
+            "generateName": "nginx-deployment-6c54bd5869-",
+            "creationTimestamp": null,
+            "labels": {
+              "app": "nginx",
+              "pod-template-hash": "2710681425"
+            },
+          
+             Truncated ...
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "default-token-tq5lq",
+                "secret": {
+                  "secretName": "default-token-tq5lq"
+                }
+              }
+            ],
+            "containers": [
+              {
+                "name": "nginx",
+                "image": "nginx",
+                "ports": [
+                  {
+                    "containerPort": 80,
+                    "protocol": "TCP"
+                  }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "default-token-tq5lq",
+                    "readOnly": true,
+                    "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+                  }
+                ],
+                 Truncated .....
+    }
+
+
+Of course the content will not always be the same, meanwhile they are some importants fields here
+Among the most important fields there is the UID available at json_data["request"]["uid"], the UID identifies the request and the response to the API server must also use the same UID when responding to the API server.
+
+The second important field is "spec" of the resources it is available at ["request"]["object"]["spec"], this is like spec under a POD configuration.
+Here you can extract the data and provide a response to the API server
+
+* ## KUBERNETES WEBHOOK RESPONSE
+
+Webhooks respond with a 200 HTTP status code, Content-Type: application/json, and a body containing an AdmissionReview object (in the same version they were sent), with the response stanza populated, serialized to JSON.
+
+At a minimum, the response stanza must contain the following fields:
+
+uid, copied from the request.uid sent to the webhook
+allowed, either set to true or false
+Example of a minimal response from a webhook to allow a request:
+
+
+    {
+      "apiVersion": "admission.k8s.io/v1",
+      "kind": "AdmissionReview",
+      "response": {
+        "uid": "<value from request.uid>",
+        "allowed": true
+      }
+    }
+
+
+Example of a minimal response from a webhook to reject a request:
+
+
+    {
+    "apiVersion": "admission.k8s.io/v1",
+    "kind": "AdmissionReview",
+    "response": {
+      "uid": "<value from request.uid>",
+      "allowed": false,
+      "status": {
+        "code": 403,
+        "message": "You cannot do this because it is Tuesday and your name starts with A"
+        }
+      }
+    }
+
+For mutating webhook when allowing a request, a mutating admission webhook may optionally modify the incoming object as well. This is done using the patch and patchType fields in the response. The only currently supported patchType is JSONPatch. See JSON patch documentation for more details. For patchType: JSONPatch, the patch field contains a base64-encoded array of JSON patch operations.
+
+As an example, a single patch operation that would set spec.replicas would be [{"op": "add", "path": "/spec/replicas", "value": 3}]
+
+    {
+      "apiVersion": "admission.k8s.io/v1",
+      "kind": "AdmissionReview",
+      "response": {
+        "uid": "<value from request.uid>",
+        "allowed": true,
+        "patchType": "JSONPatch",
+        "patch": "W3sib3AiOiAiYWRkIiwgInBhdGgiOiAiL3NwZWMvcmVwbGljYXMiLCAidmFsdWUiOiAzfV0="
+      }
+    }
+
 # REQUIREMENTS
 
 There are two ways to run the webhook server, you can run it as external server like I did or run it as POD running within the same cluster.
