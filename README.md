@@ -236,7 +236,7 @@ $ openssl genrsa -out server.key 2048     &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp
 
 $ openssl req -new -key server.key -out server.csr -config server.conf   &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;  **This will generate a CSR (Certificate Signing Request) <br> &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp;needed to get the server certificate**  <br>
 <br>
-$ openssl x509 -req -in server.csr -CA caCert.pem -CAkey caKey.pem \\    &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **This will sign the certificate with CA certificate**<br>
+$ openssl x509 -req -in server.csr -CA caCert.pem -CAkey caKey.pem \\    &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **This will sign the server certificate with CA certificate**<br>
 -CAcreateserial \\ <br>
 -out server.crt -days 100000 -extensions v3_req -extfile server.conf       <br>
 
@@ -250,7 +250,7 @@ I am using server.webhook.com as the server DNS name, since the API server must 
 config map
 
 run the below command:  <br>
-kubectl edit -n kube-system cm coredns <br>
+**kubectl edit -n kube-system cm coredns** <br>
 
 This will edit the configmap used for Kubernetes core DNS. 
 You will find a host entry in below output that resolves the dns name(server.webhook.com) to IP (192.168.1.4 which is IP of webhook server)
@@ -325,20 +325,23 @@ I have decided to only show the spec section as this is where the changes have b
     serviceAccount: sa         **default serviceaccount has been chnaged to sa**
     serviceAccountName: sa      **default serviceaccountName has been chnaged to sa**
 
-As you can see the mutating webhook has performed some changes, the serviceAccountName and resources were not specified when the POD was created but at the end they have been added. After the mutating stage the validating took place to validate the pod creation.  <br>
+As you can see the mutating webhook has performed some changes, the serviceAccountName and resources were not specified when the POD was created but at the end they have been added. After the mutating stage, the validating stage took place to validate the pod creation.  <br>
 It is also possible to use yaml definition file (declarative mode) to create the POD instead imperative mode used in this case
 
 
 
 
 * ### SCENARIO 2
-Let us test a use case where the image is not part of the list, let us a ubuntu image which is not part of the allowed list in the Flash script  <br>  
+Let us test a use case where the image is not part of the list, let us use a ubuntu image which is not part of the allowed list in the Flask script  <br>  
 
 **$ kubectl run ubuntu --image=ubuntu**  <br>
  Error from server: admission webhook "validate-webhook.test.com" denied the request: **IMAGE(S) NOT IN ALLOWED IMAGES LIST**  <br>
  <br> 
  As you can see the validating has denied the creation of the pod as ubuntu has not been added into the list in the Flask script  <br>
  The message returned by webhook is **IMAGE(S) NOT IN ALLOWED IMAGES LIST**, this message can be customized
+
+
+ 
 
   
  
